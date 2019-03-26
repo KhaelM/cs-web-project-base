@@ -172,6 +172,16 @@ namespace Michael.Database
                 throw new ArgumentException("Number of attributes or values exceed. " + attributes.Length + " attributes and " + values.Length + " values.");
 
             Type type = Type.GetType(fullClassName);
+            foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                type = asm.GetType(fullClassName);
+                if (type != null)
+                    break;
+            }
+
+            if (type == null)
+                throw new Exception("Type not found even in assemblies - Type name : " + fullClassName);
+
             ConstructorInfo constructor = null;
             ParameterInfo[] ctorParameters = null;
             string[] ctorParamNames = null;
