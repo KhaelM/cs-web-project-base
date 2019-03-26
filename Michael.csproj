@@ -40,5 +40,10 @@
     <Reference Include="System" />
     <Reference Include="System.Data" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="SequenceCreation.sql" />
+    <Content Include="TableCreation.sql" />
+    <Content Include="TriggerCreation.sql" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
