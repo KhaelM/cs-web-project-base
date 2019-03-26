@@ -27,14 +27,10 @@ namespace Michael.Database
 
             for (int i = 0; i < primaryKeys.Count; i++)
             {
-                dbParameter = dbCommand.CreateParameter();
-                dbParameter.ParameterName = "@" + primaryKeys[i];
-                dbParameter.DbType = DbType.String;
-                dbParameter.Size = 100;
+                dbParameter = CreateParameter(objectType, primaryKeys[i], dbCommand);
                 tempProperty = objectType.GetProperty(primaryKeys[i]);
                 dbParameter.Value = tempProperty.GetValue(source);
                 dbCommand.Parameters.Add(dbParameter);
-
                 sql += primaryKeys[i] + " =  @" + primaryKeys[i] + " ";
             }
 
@@ -72,10 +68,7 @@ namespace Michael.Database
 
             for (int i = 0; i < propsWithoutPrimKeys.Count; i++)
             {
-                dbParameter = command.CreateParameter();
-                dbParameter.ParameterName = "@" + propsWithoutPrimKeys[i].Name;
-                dbParameter.DbType = DbType.String;
-                dbParameter.Size = 100;
+                dbParameter = CreateParameter(objectType, propsWithoutPrimKeys[i].Name, command);
                 dbParameter.Value = propsWithoutPrimKeys[i].GetValue(source);
                 command.Parameters.Add(dbParameter);
 
@@ -89,10 +82,7 @@ namespace Michael.Database
             PropertyInfo tempProperty = null;
             for (int i = 0; i < primaryKeys.Count; i++)
             {
-                dbParameter = command.CreateParameter();
-                dbParameter.ParameterName = "@" + primaryKeys[i];
-                dbParameter.DbType = DbType.String;
-                dbParameter.Size = 100;
+                dbParameter = CreateParameter(objectType, primaryKeys[i], command);
                 tempProperty = objectType.GetProperty(primaryKeys[i]);
                 dbParameter.Value = tempProperty.GetValue(source);
                 command.Parameters.Add(dbParameter);
@@ -136,10 +126,7 @@ namespace Michael.Database
 
             for (int i = 0; i < propsWithoutPrimKeys.Count; i++)
             {
-                dbParameter = command.CreateParameter();
-                dbParameter.ParameterName = "@" + propsWithoutPrimKeys[i].Name;
-                dbParameter.DbType = DbType.String;
-                dbParameter.Size = 100;
+                dbParameter = CreateParameter(objectType, propsWithoutPrimKeys[i].Name, command);
                 dbParameter.Value = propsWithoutPrimKeys[i].GetValue(source);
                 command.Parameters.Add(dbParameter);
 
@@ -223,10 +210,7 @@ namespace Michael.Database
 
                 for (int i = 0; i < attributes.Length; i++)
                 {
-                    dbParameter = command.CreateParameter();
-                    dbParameter.ParameterName = "@" + attributes[i];
-                    dbParameter.DbType = System.Data.DbType.String;
-                    dbParameter.Size = 100;
+                    dbParameter = CreateParameter(type, attributes[i], command);
                     dbParameter.Value = values[i];
                     command.Parameters.Add(dbParameter);
                 }
@@ -276,6 +260,97 @@ namespace Michael.Database
             }
 
             return result.ToArray();
+        }
+
+        public static DbParameter CreateParameter(Type objectType, string propertyName, DbCommand dbCommand)
+        {
+            PropertyInfo property = objectType.GetProperty(propertyName);
+
+            if (property == null)
+                throw new Exception("Property '" + propertyName + "' not found.");
+
+            DbParameter parameter = dbCommand.CreateParameter();
+            parameter.ParameterName = "@" + propertyName;
+
+            if(property.PropertyType == typeof(string) || property.PropertyType == typeof(char[]))
+            {
+                parameter.DbType = DbType.String;
+                parameter.Size = 4000;
+            }
+            else if (property.PropertyType == typeof(byte[]))
+            {
+                parameter.DbType = DbType.Binary;
+            }
+            else if(property.PropertyType == typeof(long))
+            {
+                parameter.DbType = DbType.Int64;
+            }
+            else if (property.PropertyType == typeof(int))
+            {
+                parameter.DbType = DbType.Int32;
+            }
+            else if (property.PropertyType == typeof(short))
+            {
+                parameter.DbType = DbType.Int16;
+            }
+            else if(property.PropertyType == typeof(bool))
+            {
+                parameter.DbType = DbType.Boolean;
+            }
+            else if(property.PropertyType == typeof(byte))
+            {
+                parameter.DbType = DbType.Byte;
+            }
+            else if(property.PropertyType == typeof(DateTime))
+            {
+                parameter.DbType = DbType.DateTime;
+            }
+            else if (property.PropertyType == typeof(DateTimeOffset))
+            {
+                parameter.DbType = DbType.DateTimeOffset;
+            }
+            else if(property.PropertyType == typeof(decimal) || property.PropertyType == typeof(float))
+            {
+                parameter.DbType = DbType.Decimal;
+            }
+            else if(property.PropertyType == typeof(double))
+            {
+                parameter.DbType = DbType.Double;
+            }
+            else if(property.PropertyType == typeof(TimeSpan))
+            {
+                parameter.DbType = DbType.Time;
+            }
+            else if(property.PropertyType == typeof(sbyte))
+            {
+                parameter.DbType = DbType.SByte;
+            }
+            else if (property.PropertyType == typeof(float))
+            {
+                parameter.DbType = DbType.Single;
+            }
+            else if (property.PropertyType == typeof(Guid))
+            {
+                parameter.DbType = DbType.Guid;
+            }
+            else if (property.PropertyType == typeof(object))
+            {
+                parameter.DbType = DbType.Object;
+            }
+            else if (property.PropertyType == typeof(ulong))
+            {
+                parameter.DbType = DbType.UInt64;
+            }
+            else if (property.PropertyType == typeof(uint))
+            {
+                parameter.DbType = DbType.UInt32;
+            }
+            else if (property.PropertyType == typeof(ushort) || property.PropertyType == typeof(char))
+            {
+                parameter.DbType = DbType.UInt16;
+            }
+
+            return parameter;
         }
 
         public static List<string> GetPrimaryKeyColumns(DbConnection connection, string tableName)
@@ -413,8 +488,8 @@ namespace Michael.Database
             DbParameter parameter = command.CreateParameter();
             parameter.ParameterName = "@table";
             parameter.Value = table;
-            parameter.Size = 100;
             parameter.DbType = System.Data.DbType.String;
+            parameter.Size = 4000;
             command.Parameters.Add(parameter);
             command.Prepare();
 
