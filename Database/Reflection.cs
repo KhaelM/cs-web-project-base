@@ -23,7 +23,7 @@ namespace Michael.Database
             DbCommand dbCommand = connection.CreateCommand();
             DbParameter dbParameter = null;
             PropertyInfo tempProperty = null;
-            string sql = "DELETE FROM " + tableName + " WHERE ";
+            string sql = "DELETE FROM \"" + tableName + "\" WHERE ";
 
             for (int i = 0; i < primaryKeys.Count; i++)
             {
@@ -31,7 +31,7 @@ namespace Michael.Database
                 tempProperty = objectType.GetProperty(primaryKeys[i]);
                 dbParameter.Value = tempProperty.GetValue(source);
                 dbCommand.Parameters.Add(dbParameter);
-                sql += primaryKeys[i] + " =  @" + primaryKeys[i] + " ";
+                sql += "\"" + primaryKeys[i] + "\" =  @" + primaryKeys[i] + " ";
             }
 
             dbCommand.CommandText = sql;
@@ -64,7 +64,7 @@ namespace Michael.Database
 
             DbCommand command = connection.CreateCommand();
             DbParameter dbParameter = null;
-            string sql = "UPDATE "+ tableName + " SET ";
+            string sql = "UPDATE \""+ tableName + "\" SET ";
 
             for (int i = 0; i < propsWithoutPrimKeys.Count; i++)
             {
@@ -87,7 +87,7 @@ namespace Michael.Database
                 dbParameter.Value = tempProperty.GetValue(source);
                 command.Parameters.Add(dbParameter);
 
-                sql += primaryKeys[i] + " = @" + primaryKeys[i];
+                sql += "\"" + primaryKeys[i] + "\" = @" + primaryKeys[i];
                 if (i != primaryKeys.Count - 1)
                     sql += ",";
             }
@@ -121,7 +121,7 @@ namespace Michael.Database
 
             DbCommand command = connection.CreateCommand();
             DbParameter dbParameter = null;
-            string sql1 = "INSERT INTO " + tableName + " (";
+            string sql1 = "INSERT INTO \"" + tableName + "\" (";
             string sql2 = "VALUES (";
 
             for (int i = 0; i < propsWithoutPrimKeys.Count; i++)
@@ -130,7 +130,7 @@ namespace Michael.Database
                 dbParameter.Value = propsWithoutPrimKeys[i].GetValue(source);
                 command.Parameters.Add(dbParameter);
 
-                sql1 += propsWithoutPrimKeys[i].Name;
+                sql1 += "\""+ propsWithoutPrimKeys[i].Name + "\"";
                 sql2 += "@" + propsWithoutPrimKeys[i].Name;
                 if (i != propsWithoutPrimKeys.Count - 1)
                 {
@@ -150,7 +150,7 @@ namespace Michael.Database
             return command.ExecuteNonQuery();
         }
 
-        public static object[] Select(DbConnection connection, string table, string fullClassName, string[] attributes, string[] values)
+        public static object[] Select(DbConnection connection, string table, string fullClassName, string[] attributes, string[] values, string[] operators)
         {
             if((attributes != null && values == null) || (attributes == null && values != null))
                 throw new ArgumentException("Attributes and values must be set together or null together");
@@ -197,7 +197,7 @@ namespace Michael.Database
             }
 
             DbCommand command = connection.CreateCommand();
-            string sql = "SELECT * FROM " + table;
+            string sql = "SELECT * FROM \"" + table + "\"";
 
             if (attributes != null)
             {
@@ -205,7 +205,9 @@ namespace Michael.Database
                 DbParameter dbParameter = null;
                 for (int i = 0; i < attributes.Length; i++)
                 {
-                    sql += attributes[i] + " = @" + attributes[i] + " ";
+                    sql += "\""+ attributes[i] + "\" " + operators[i] + " @" + attributes[i];
+                    if (i != attributes.Length - 1)
+                        sql += " AND ";
                 }
 
                 for (int i = 0; i < attributes.Length; i++)
@@ -232,15 +234,24 @@ namespace Michael.Database
                     for (int i = 0; i < ctorParamNames.Length; i++)
                     {
                         value = dataReader.GetValue(dataReader.GetOrdinal(ctorParamNames[i]));
-                        argumentsValue.Add(Convert.ChangeType(value, ctorParameters[i].ParameterType));
+                        if (!(value is System.DBNull))
+                            argumentsValue.Add(Convert.ChangeType(value, ctorParameters[i].ParameterType));
+                        else
+                            argumentsValue.Add(null);
                     }
 
                     obj = constructor.Invoke(argumentsValue.ToArray());
 
                     foreach (PropertyInfo common in commonDbProperties)
                     {
-                        if(!readOnlyProperties.Contains(common))
-                            common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.ToPascalCase(common.Name))));
+                        value = dataReader.GetValue(dataReader.GetOrdinal(StringUtility.ToPascalCase(common.Name)));
+                        if (!readOnlyProperties.Contains(common))
+                        {
+                            if (value is System.DBNull)
+                                value = null;
+
+                            common.SetValue(obj, value);
+                        }
                     }
 
                     result.Add(obj);
@@ -312,6 +323,8 @@ namespace Michael.Database
             else if(property.PropertyType == typeof(decimal) || property.PropertyType == typeof(float))
             {
                 parameter.DbType = DbType.Decimal;
+                parameter.Precision = 18;
+                parameter.Scale = 3;
             }
             else if(property.PropertyType == typeof(double))
             {
