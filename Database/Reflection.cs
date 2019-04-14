@@ -127,7 +127,7 @@ namespace Michael.Database
             for (int i = 0; i < propsWithoutPrimKeys.Count; i++)
             {
                 dbParameter = CreateParameter(objectType, propsWithoutPrimKeys[i].Name, command);
-                dbParameter.Value = propsWithoutPrimKeys[i].GetValue(source);
+                dbParameter.Value = propsWithoutPrimKeys[i].GetValue(source) ?? DBNull.Value;
                 command.Parameters.Add(dbParameter);
 
                 sql1 += "\""+ propsWithoutPrimKeys[i].Name + "\"";
@@ -292,57 +292,57 @@ namespace Michael.Database
             {
                 parameter.DbType = DbType.Binary;
             }
-            else if(property.PropertyType == typeof(long))
+            else if(property.PropertyType == typeof(long) || property.PropertyType == typeof(long?))
             {
                 parameter.DbType = DbType.Int64;
             }
-            else if (property.PropertyType == typeof(int))
+            else if (property.PropertyType == typeof(int) || property.PropertyType == typeof(int?))
             {
                 parameter.DbType = DbType.Int32;
             }
-            else if (property.PropertyType == typeof(short))
+            else if (property.PropertyType == typeof(short) || property.PropertyType == typeof(short?))
             {
                 parameter.DbType = DbType.Int16;
             }
-            else if(property.PropertyType == typeof(bool))
+            else if(property.PropertyType == typeof(bool) || property.PropertyType == typeof(bool?))
             {
                 parameter.DbType = DbType.Boolean;
             }
-            else if(property.PropertyType == typeof(byte))
+            else if(property.PropertyType == typeof(byte) || property.PropertyType == typeof(byte?))
             {
                 parameter.DbType = DbType.Byte;
             }
-            else if(property.PropertyType == typeof(DateTime))
+            else if(property.PropertyType == typeof(DateTime) || property.PropertyType == typeof(DateTime?))
             {
                 parameter.DbType = DbType.DateTime;
             }
-            else if (property.PropertyType == typeof(DateTimeOffset))
+            else if (property.PropertyType == typeof(DateTimeOffset) || property.PropertyType == typeof(DateTimeOffset?))
             {
                 parameter.DbType = DbType.DateTimeOffset;
             }
-            else if(property.PropertyType == typeof(decimal) || property.PropertyType == typeof(float))
+            else if(property.PropertyType == typeof(decimal) || property.PropertyType == typeof(decimal?) || property.PropertyType == typeof(float) || property.PropertyType == typeof(float?))
             {
                 parameter.DbType = DbType.Decimal;
                 parameter.Precision = 18;
                 parameter.Scale = 3;
             }
-            else if(property.PropertyType == typeof(double))
+            else if(property.PropertyType == typeof(double) || property.PropertyType == typeof(double?))
             {
                 parameter.DbType = DbType.Double;
             }
-            else if(property.PropertyType == typeof(TimeSpan))
+            else if(property.PropertyType == typeof(TimeSpan) || property.PropertyType == typeof(TimeSpan?))
             {
                 parameter.DbType = DbType.Time;
             }
-            else if(property.PropertyType == typeof(sbyte))
+            else if(property.PropertyType == typeof(sbyte) || property.PropertyType == typeof(sbyte?))
             {
                 parameter.DbType = DbType.SByte;
             }
-            else if (property.PropertyType == typeof(float))
+            else if (property.PropertyType == typeof(float) || property.PropertyType == typeof(float?))
             {
                 parameter.DbType = DbType.Single;
             }
-            else if (property.PropertyType == typeof(Guid))
+            else if (property.PropertyType == typeof(Guid) || property.PropertyType == typeof(Guid?))
             {
                 parameter.DbType = DbType.Guid;
             }
@@ -350,15 +350,15 @@ namespace Michael.Database
             {
                 parameter.DbType = DbType.Object;
             }
-            else if (property.PropertyType == typeof(ulong))
+            else if (property.PropertyType == typeof(ulong) || property.PropertyType == typeof(ulong?))
             {
                 parameter.DbType = DbType.UInt64;
             }
-            else if (property.PropertyType == typeof(uint))
+            else if (property.PropertyType == typeof(uint) || property.PropertyType == typeof(uint?))
             {
                 parameter.DbType = DbType.UInt32;
             }
-            else if (property.PropertyType == typeof(ushort) || property.PropertyType == typeof(char))
+            else if (property.PropertyType == typeof(ushort) || property.PropertyType == typeof(ushort?) || property.PropertyType == typeof(char) || property.PropertyType == typeof(char))
             {
                 parameter.DbType = DbType.UInt16;
             }
