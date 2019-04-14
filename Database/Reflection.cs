@@ -235,7 +235,7 @@ namespace Michael.Database
                     {
                         value = dataReader.GetValue(dataReader.GetOrdinal(ctorParamNames[i]));
                         if (!(value is System.DBNull))
-                            argumentsValue.Add(Convert.ChangeType(value, ctorParameters[i].ParameterType));
+                            argumentsValue.Add(Convert.ChangeType(value, Nullable.GetUnderlyingType(ctorParameters[i].ParameterType) ?? ctorParameters[i].ParameterType));
                         else
                             argumentsValue.Add(null);
                     }
