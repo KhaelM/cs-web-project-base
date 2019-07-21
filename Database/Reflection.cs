@@ -9,38 +9,39 @@ namespace Michael.Database
 {
     public class Reflection
     {
-        public static int Delete(DbConnection connection, string tableName, object source)
+        public static int Delete(DbConnection connection, string tableName, Dictionary<string, object> where)
         {
-            if (source == null)
-                throw new ArgumentException("Source cannot be null.");
 
             if (string.IsNullOrEmpty(tableName))
                 throw new ArgumentException("Table name must be set.");
 
-            Type objectType = source.GetType();
-            List<PropertyInfo> commonDbProperties = FindCommonDbProperties(tableName, connection, objectType);
-            DbCommand dbCommand = connection.CreateCommand();
+            if (where == null || where.Count == 0)
+                throw new ArgumentException("Where clause must be set");
+
+            DbCommand command = connection.CreateCommand();
             DbParameter dbParameter = null;
-            PropertyInfo tempProperty = null;
             string sql = "DELETE FROM \"" + tableName + "\" WHERE ";
 
-            for (int i = 0; i < commonDbProperties.Count; i++)
+            int i = 0;
+            foreach (var item in where)
             {
-                dbParameter = CreateParameter(objectType, commonDbProperties[i].Name, dbCommand);
-                tempProperty = objectType.GetProperty(commonDbProperties[i].Name);
-                dbParameter.Value = tempProperty.GetValue(source);
-                dbCommand.Parameters.Add(dbParameter);
-                sql += "\"" + commonDbProperties[i].Name + "\" =  @" + commonDbProperties[i].Name;
-                if (i != commonDbProperties.Count - 1)
+                dbParameter = command.CreateParameter();
+                dbParameter.ParameterName = "@" + item.Key;
+                dbParameter.DbType = DbType.String;
+                dbParameter.Size = 4000;
+                dbParameter.Value = item.Value;
+                command.Parameters.Add(dbParameter);
+
+                sql += "\"" + item.Key + "\" =  @" + item.Key;
+                if (i != where.Count - 1)
                     sql += " AND ";
+                i++;
             }
 
-            Console.WriteLine(sql);
+            command.CommandText = sql;
+            command.Prepare();
 
-            dbCommand.CommandText = sql;
-            dbCommand.Prepare();
-
-            return dbCommand.ExecuteNonQuery();
+            return command.ExecuteNonQuery();
         }
 
         public static int Update(DbConnection connection, string tableName, Dictionary<string, object> updates, Dictionary<string, object> where)
