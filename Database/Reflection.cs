@@ -126,6 +126,9 @@ namespace Michael.Database
             string sql1 = "INSERT INTO \"" + tableName + "\" (";
             string sql2 = "VALUES (";
 
+            if (propsWithoutPrimKeys.Count == 0)
+                propsWithoutPrimKeys = commonDbProperties;
+
             for (int i = 0; i < propsWithoutPrimKeys.Count; i++)
             {
                 dbParameter = CreateParameter(objectType, propsWithoutPrimKeys[i].Name, command);
@@ -145,6 +148,8 @@ namespace Michael.Database
                     sql2 += ")";
                 }
             }
+
+            Console.WriteLine("sql1 = "+sql1 +" sql2 =" + sql2);
 
             command.CommandText = sql1 + sql2;
             command.Prepare();
@@ -271,6 +276,7 @@ namespace Michael.Database
                     result.Add(obj);
                 }
             }
+            dataReader.Close();
 
             return result.ToArray();
         }
