@@ -97,6 +97,8 @@ namespace Michael.Database
             return command.ExecuteNonQuery();
         }
 
+
+
         public static int Insert(DbConnection connection, string tableName, object source)
         {
             if (source == null)
@@ -259,9 +261,9 @@ namespace Michael.Database
             }
             else
             {
-                obj = Activator.CreateInstance(type);
                 while (dataReader.Read())
                 {
+                    obj = Activator.CreateInstance(type);
                     foreach (PropertyInfo common in commonDbProperties)
                     {
                         common.SetValue(obj,  dataReader.GetValue(dataReader.GetOrdinal(StringUtility.ToPascalCase(common.Name))));
