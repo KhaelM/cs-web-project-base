@@ -18,21 +18,24 @@ namespace Michael.Database
                 throw new ArgumentException("Table name must be set.");
 
             Type objectType = source.GetType();
-            List<string> primaryKeys = GetPrimaryKeyColumns(connection, tableName);
-
+            List<PropertyInfo> commonDbProperties = FindCommonDbProperties(tableName, connection, objectType);
             DbCommand dbCommand = connection.CreateCommand();
             DbParameter dbParameter = null;
             PropertyInfo tempProperty = null;
             string sql = "DELETE FROM \"" + tableName + "\" WHERE ";
 
-            for (int i = 0; i < primaryKeys.Count; i++)
+            for (int i = 0; i < commonDbProperties.Count; i++)
             {
-                dbParameter = CreateParameter(objectType, primaryKeys[i], dbCommand);
-                tempProperty = objectType.GetProperty(primaryKeys[i]);
+                dbParameter = CreateParameter(objectType, commonDbProperties[i].Name, dbCommand);
+                tempProperty = objectType.GetProperty(commonDbProperties[i].Name);
                 dbParameter.Value = tempProperty.GetValue(source);
                 dbCommand.Parameters.Add(dbParameter);
-                sql += "\"" + primaryKeys[i] + "\" =  @" + primaryKeys[i] + " ";
+                sql += "\"" + commonDbProperties[i].Name + "\" =  @" + commonDbProperties[i].Name;
+                if (i != commonDbProperties.Count - 1)
+                    sql += " AND ";
             }
+
+            Console.WriteLine(sql);
 
             dbCommand.CommandText = sql;
             dbCommand.Prepare();
