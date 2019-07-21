@@ -20,7 +20,7 @@ namespace Michael.Database
 
             DbCommand command = connection.CreateCommand();
             DbParameter dbParameter = null;
-            string sql = "DELETE FROM \"" + tableName + "\" WHERE ";
+            string sql = "DELETE FROM " + tableName + " WHERE ";
 
             int i = 0;
             foreach (var item in where)
@@ -32,7 +32,7 @@ namespace Michael.Database
                 dbParameter.Value = item.Value;
                 command.Parameters.Add(dbParameter);
 
-                sql += "\"" + item.Key + "\" =  @" + item.Key;
+                sql += item.Key + " =  @" + item.Key;
                 if (i != where.Count - 1)
                     sql += " AND ";
                 i++;
@@ -57,7 +57,7 @@ namespace Michael.Database
 
             DbCommand command = connection.CreateCommand();
             DbParameter dbParameter = null;
-            string sql = "UPDATE \""+ tableName + "\" SET ";
+            string sql = "UPDATE "+ tableName + " SET ";
 
 
             int i = 0;
@@ -88,7 +88,7 @@ namespace Michael.Database
                 dbParameter.Value = item.Value;
                 command.Parameters.Add(dbParameter);
 
-                sql += "\"" + item.Key + "\" = @" + item.Key;
+                sql += item.Key + " = @" + item.Key;
                 if (i != where.Count - 1)
                     sql += " AND ";
                 i++;
@@ -125,7 +125,7 @@ namespace Michael.Database
 
             DbCommand command = connection.CreateCommand();
             DbParameter dbParameter = null;
-            string sql1 = "INSERT INTO \"" + tableName + "\" (";
+            string sql1 = "INSERT INTO " + tableName + " (";
             string sql2 = "VALUES (";
 
             if (propsWithoutPrimKeys.Count == 0)
@@ -137,7 +137,7 @@ namespace Michael.Database
                 dbParameter.Value = propsWithoutPrimKeys[i].GetValue(source) ?? DBNull.Value;
                 command.Parameters.Add(dbParameter);
 
-                sql1 += "\""+ propsWithoutPrimKeys[i].Name + "\"";
+                sql1 += propsWithoutPrimKeys[i].Name;
                 sql2 += "@" + propsWithoutPrimKeys[i].Name;
                 if (i != propsWithoutPrimKeys.Count - 1)
                 {
@@ -206,7 +206,7 @@ namespace Michael.Database
             }
 
             DbCommand command = connection.CreateCommand();
-            string sql = "SELECT * FROM \"" + table + "\"";
+            string sql = "SELECT * FROM "+ table;
 
             if (attributes != null)
             {
@@ -214,7 +214,7 @@ namespace Michael.Database
                 DbParameter dbParameter = null;
                 for (int i = 0; i < attributes.Length; i++)
                 {
-                    sql += "\""+ attributes[i] + "\" " + operators[i] + " @" + attributes[i];
+                    sql += ""+ attributes[i] + " " + operators[i] + " @" + attributes[i];
                     if (i != attributes.Length - 1)
                         sql += " AND ";
                 }
