@@ -151,8 +151,6 @@ namespace Michael.Database
                 }
             }
 
-            Console.WriteLine("sql1 = "+sql1 +" sql2 =" + sql2);
-
             command.CommandText = sql1 + sql2;
             command.Prepare();
 
