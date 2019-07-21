@@ -43,56 +43,54 @@ namespace Michael.Database
             return dbCommand.ExecuteNonQuery();
         }
 
-        public static int Update(DbConnection connection, string tableName, object source)
+        public static int Update(DbConnection connection, string tableName, Dictionary<string, object> updates, Dictionary<string, object> where)
         {
-            if (source == null)
-                throw new ArgumentException("Source cannot be null.");
-
             if (string.IsNullOrEmpty(tableName))
                 throw new ArgumentException("Table name must be set.");
 
-            Type objectType = source.GetType();
-            List<string> primaryKeys = GetPrimaryKeyColumns(connection, tableName);
-            List<PropertyInfo> commonDbProperties = FindCommonDbProperties(tableName, connection, objectType);
-            List<PropertyInfo> propsWithoutPrimKeys = new List<PropertyInfo>();
+            if (updates.Count == 0 || updates == null)
+                throw new ArgumentException("There is no attribute/values to update.");
 
-            foreach (PropertyInfo property in commonDbProperties)
-            {
-                for (int i = 0; i < primaryKeys.Count; i++)
-                {
-                    if (!property.Name.Equals(primaryKeys[i], StringComparison.InvariantCultureIgnoreCase))
-                        propsWithoutPrimKeys.Add(property);
-                }
-            }
+            if (where.Count == 0 || where == null)
+                throw new ArgumentException("No criteria for update.");
 
             DbCommand command = connection.CreateCommand();
             DbParameter dbParameter = null;
             string sql = "UPDATE \""+ tableName + "\" SET ";
 
-            for (int i = 0; i < propsWithoutPrimKeys.Count; i++)
+
+            int i = 0;
+            foreach (var item in updates)
             {
-                dbParameter = CreateParameter(objectType, propsWithoutPrimKeys[i].Name, command);
-                dbParameter.Value = propsWithoutPrimKeys[i].GetValue(source);
+                dbParameter = command.CreateParameter();
+                dbParameter.ParameterName = "@" + item.Key;
+                dbParameter.DbType = DbType.String;
+                dbParameter.Size = 4000;
+                dbParameter.Value = item.Value;
                 command.Parameters.Add(dbParameter);
 
-                sql += propsWithoutPrimKeys[i].Name + " = @" + propsWithoutPrimKeys[i].Name;
-                if (i != propsWithoutPrimKeys.Count - 1)
+                sql += item.Key + " = @" + item.Key;
+                if (i != updates.Count - 1)
                     sql += ", ";
                 else
                     sql += " WHERE ";
+                i++;
             }
 
-            PropertyInfo tempProperty = null;
-            for (int i = 0; i < primaryKeys.Count; i++)
+            i = 0;
+            foreach (var item in where)
             {
-                dbParameter = CreateParameter(objectType, primaryKeys[i], command);
-                tempProperty = objectType.GetProperty(primaryKeys[i]);
-                dbParameter.Value = tempProperty.GetValue(source);
+                dbParameter = command.CreateParameter();
+                dbParameter.ParameterName = "@" + item.Key;
+                dbParameter.DbType = DbType.String;
+                dbParameter.Size = 4000;
+                dbParameter.Value = item.Value;
                 command.Parameters.Add(dbParameter);
 
-                sql += "\"" + primaryKeys[i] + "\" = @" + primaryKeys[i];
-                if (i != primaryKeys.Count - 1)
-                    sql += ",";
+                sql += "\"" + item.Key + "\" = @" + item.Key;
+                if (i != where.Count - 1)
+                    sql += " AND ";
+                i++;
             }
             command.CommandText = sql;
             command.Prepare();
