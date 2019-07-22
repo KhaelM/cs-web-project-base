@@ -9,6 +9,54 @@ namespace Michael.Database
 {
     public class Reflection
     {
+        public static DbColumn FindColumn(DbConnection connection, string tableName, string columnName)
+        {
+            DbCommand dbCommand = connection.CreateCommand();
+            dbCommand.CommandText = "SELECT * FROM " + tableName;
+            DbDataReader dbDataReader = dbCommand.ExecuteReader(CommandBehavior.KeyInfo);
+            DataTable schemaTable = dbDataReader.GetSchemaTable();
+
+            foreach (DataRow row in schemaTable.Rows)
+            {
+                if (row["ColumnName"].ToString().Equals(columnName.ToLower()))
+                {
+                    DbColumn result = new DbColumn();
+                    object[] res = row.ItemArray;
+                    for (int j = 0; j < res.Length; j++)
+                    {
+                        result.ColumnName = (string)res[0];
+                        result.ColumnOrdinal = (int)res[1];
+                        result.ColumnSize = (int)res[2];
+                        result.NumericPrecision = (int?)res[3];
+                        result.NumericScale = (int?)res[4];
+                        result.IsUnique = (bool)res[5];
+                        result.IsKey = (bool)res[6];
+                        result.BaseServerName = (string)res[7];
+                        result.BaseCatalogName = (string)res[8];
+                        result.BaseColumnName = (string)res[9];
+                        result.BaseSchemaName = (string)res[10];
+                        result.BaseTableName = (string)res[11];
+                        result.DataType = (Type)res[12];
+                        result.AllowDBNull = (bool)res[13];
+                        result.ProviderType = (int?)res[14];
+                        result.IsAliased = (bool?)res[15];
+                        result.IsExpression = (bool?)res[16];
+                        result.IsIdentity = (bool?)res[17];
+                        result.IsAutoIncrement = (bool?)res[18];
+                        result.IsRowVersion = (bool?)res[19];
+                        result.IsHidden = (bool?)res[20];
+                        result.IsLong = (bool?)res[21];
+                        result.IsReadOnly = res[22] == System.DBNull.Value ? null : (bool?)res[22];
+                        result.ProviderSpecificDataType = res[22] == System.DBNull.Value ? null : (Type)res[22];
+                        result.DataTypeName = (string)res[24];
+                    }
+                    dbDataReader.Close();
+                    return result;
+                }
+            }
+            throw new Exception("Attribute " + columnName + " not found in table " + tableName+".");
+        }
+
         public static int Delete(DbConnection connection, string tableName, Dictionary<string, object> where)
         {
 
@@ -25,11 +73,7 @@ namespace Michael.Database
             int i = 0;
             foreach (var item in where)
             {
-                dbParameter = command.CreateParameter();
-                dbParameter.ParameterName = "@" + item.Key;
-                dbParameter.DbType = DbType.String;
-                dbParameter.Size = 4000;
-                dbParameter.Value = item.Value;
+                dbParameter = CreateParameter(connection, tableName, item.Key, command, item.Value, item.Key);
                 command.Parameters.Add(dbParameter);
 
                 sql += item.Key + " =  @" + item.Key;
@@ -57,17 +101,13 @@ namespace Michael.Database
 
             DbCommand command = connection.CreateCommand();
             DbParameter dbParameter = null;
-            string sql = "UPDATE "+ tableName + " SET ";
+            string sql = "UPDATE "+ tableName.ToLower() + " SET ";
 
 
             int i = 0;
             foreach (var item in updates)
             {
-                dbParameter = command.CreateParameter();
-                dbParameter.ParameterName = "@" + item.Key;
-                dbParameter.DbType = DbType.String;
-                dbParameter.Size = 4000;
-                dbParameter.Value = item.Value;
+                dbParameter = CreateParameter(connection, tableName, item.Key, command, item.Value, item.Key);
                 command.Parameters.Add(dbParameter);
 
                 sql += item.Key + " = @" + item.Key;
@@ -81,14 +121,10 @@ namespace Michael.Database
             i = 0;
             foreach (var item in where)
             {
-                dbParameter = command.CreateParameter();
-                dbParameter.ParameterName = "@" + item.Key;
-                dbParameter.DbType = DbType.String;
-                dbParameter.Size = 4000;
-                dbParameter.Value = item.Value;
+                dbParameter = CreateParameter(connection, tableName, item.Key, command, item.Value, "where"+item.Key);
                 command.Parameters.Add(dbParameter);
 
-                sql += item.Key + " = @" + item.Key;
+                sql += item.Key + " = @where" + item.Key;
                 if (i != where.Count - 1)
                     sql += " AND ";
                 i++;
@@ -98,8 +134,6 @@ namespace Michael.Database
 
             return command.ExecuteNonQuery();
         }
-
-
 
         public static int Insert(DbConnection connection, string tableName, object source)
         {
@@ -133,8 +167,7 @@ namespace Michael.Database
 
             for (int i = 0; i < propsWithoutPrimKeys.Count; i++)
             {
-                dbParameter = CreateParameter(objectType, propsWithoutPrimKeys[i].Name, command);
-                dbParameter.Value = propsWithoutPrimKeys[i].GetValue(source) ?? DBNull.Value;
+                dbParameter = CreateParameter(connection, tableName, propsWithoutPrimKeys[i].Name, command, propsWithoutPrimKeys[i].GetValue(source), propsWithoutPrimKeys[i].Name);
                 command.Parameters.Add(dbParameter);
 
                 sql1 += propsWithoutPrimKeys[i].Name;
@@ -157,7 +190,7 @@ namespace Michael.Database
             return command.ExecuteNonQuery();
         }
 
-        public static object[] Select(DbConnection connection, string table, string fullClassName, string[] attributes, string[] values, string[] operators)
+        public static object[] Select(DbConnection connection, string table, string fullClassName, string[] attributes, object[] values, string[] operators)
         {
             if((attributes != null && values == null) || (attributes == null && values != null))
                 throw new ArgumentException("Attributes and values must be set together or null together");
@@ -212,15 +245,14 @@ namespace Michael.Database
                 DbParameter dbParameter = null;
                 for (int i = 0; i < attributes.Length; i++)
                 {
-                    sql += ""+ attributes[i] + " " + operators[i] + " @" + attributes[i];
+                    sql += attributes[i] + " " + operators[i] + " @" + attributes[i];
                     if (i != attributes.Length - 1)
                         sql += " AND ";
                 }
 
                 for (int i = 0; i < attributes.Length; i++)
                 {
-                    dbParameter = CreateParameter(type, attributes[i], command);
-                    dbParameter.Value = values[i];
+                    dbParameter = CreateParameter(connection, table, attributes[i], command, values[i], attributes[i]);
                     command.Parameters.Add(dbParameter);
                 }
             }
@@ -281,94 +313,110 @@ namespace Michael.Database
             return result.ToArray();
         }
 
-        public static DbParameter CreateParameter(Type objectType, string propertyName, DbCommand dbCommand)
+        public static DbParameter CreateParameter(DbConnection connection, string tableName, string columnName, DbCommand dbCommand, object value, string parameterName)
         {
-            PropertyInfo property = objectType.GetProperty(propertyName);
-
-            if (property == null)
-                throw new Exception("Property '" + propertyName + "' not found.");
+            DbColumn column = FindColumn(connection, tableName, columnName);
 
             DbParameter parameter = dbCommand.CreateParameter();
-            parameter.ParameterName = "@" + propertyName;
+            parameter.ParameterName = "@" + parameterName;
+            parameter.Size = column.ColumnSize.Value;
+            parameter.Precision = (byte) column.NumericPrecision.Value;
+            parameter.Scale = (byte) column.NumericScale.Value;
 
-            if(property.PropertyType == typeof(string) || property.PropertyType == typeof(char[]))
+            if (column.DataType == typeof(string) ||column.DataType == typeof(char[]))
             {
                 parameter.DbType = DbType.String;
-                parameter.Size = 4000;
+                parameter.Value = (string)value;
             }
-            else if (property.PropertyType == typeof(byte[]))
+            else if (column.DataType == typeof(byte[]))
             {
                 parameter.DbType = DbType.Binary;
+                parameter.Value = (byte[])value;
             }
-            else if(property.PropertyType == typeof(long) || property.PropertyType == typeof(long?))
+            else if(column.DataType == typeof(long) || column.DataType == typeof(long?))
             {
                 parameter.DbType = DbType.Int64;
+                parameter.Value = value is string ? long.Parse((string)value) : (long)value;
             }
-            else if (property.PropertyType == typeof(int) || property.PropertyType == typeof(int?))
+            else if (column.DataType == typeof(int) || column.DataType == typeof(int?))
             {
                 parameter.DbType = DbType.Int32;
+                parameter.Value = value is string ? int.Parse((string)value) : (int) value;
             }
-            else if (property.PropertyType == typeof(short) || property.PropertyType == typeof(short?))
+            else if (column.DataType == typeof(short) || column.DataType == typeof(short?))
             {
                 parameter.DbType = DbType.Int16;
+                parameter.Value = value is string ? short.Parse((string)value) : (short)value;
             }
-            else if(property.PropertyType == typeof(bool) || property.PropertyType == typeof(bool?))
+            else if(column.DataType == typeof(bool) || column.DataType == typeof(bool?))
             {
                 parameter.DbType = DbType.Boolean;
+                parameter.Value = value is string ? bool.Parse((string)value) : (bool)value;
             }
-            else if(property.PropertyType == typeof(byte) || property.PropertyType == typeof(byte?))
+            else if(column.DataType == typeof(byte) || column.DataType == typeof(byte?))
             {
                 parameter.DbType = DbType.Byte;
+                parameter.Value = value is string ? byte.Parse((string)value) : (byte)value;
             }
-            else if(property.PropertyType == typeof(DateTime) || property.PropertyType == typeof(DateTime?))
+            else if(column.DataType == typeof(DateTime) || column.DataType == typeof(DateTime?))
             {
                 parameter.DbType = DbType.DateTime;
+                parameter.Value = value is string ? DateTime.Parse((string)value) : (DateTime)value;
             }
-            else if (property.PropertyType == typeof(DateTimeOffset) || property.PropertyType == typeof(DateTimeOffset?))
+            else if (column.DataType == typeof(DateTimeOffset) || column.DataType == typeof(DateTimeOffset?))
             {
                 parameter.DbType = DbType.DateTimeOffset;
+                parameter.Value = value is string ? DateTimeOffset.Parse((string)value) : (DateTimeOffset)value;
             }
-            else if(property.PropertyType == typeof(decimal) || property.PropertyType == typeof(decimal?) || property.PropertyType == typeof(float) || property.PropertyType == typeof(float?))
+            else if(column.DataType == typeof(decimal) || column.DataType == typeof(decimal?))
             {
                 parameter.DbType = DbType.Decimal;
-                parameter.Precision = 18;
-                parameter.Scale = 3;
+                parameter.Value = value is string ? decimal.Parse((string)value) : (decimal)value;
             }
-            else if(property.PropertyType == typeof(double) || property.PropertyType == typeof(double?))
+            else if(column.DataType == typeof(double) || column.DataType == typeof(double?))
             {
                 parameter.DbType = DbType.Double;
+                parameter.Value = value is string ? double.Parse((string)value) : (double)value;
             }
-            else if(property.PropertyType == typeof(TimeSpan) || property.PropertyType == typeof(TimeSpan?))
+            else if(column.DataType == typeof(TimeSpan) || column.DataType == typeof(TimeSpan?))
             {
                 parameter.DbType = DbType.Time;
+                parameter.Value = value is string ? TimeSpan.Parse((string)value) : (TimeSpan)value;
             }
-            else if(property.PropertyType == typeof(sbyte) || property.PropertyType == typeof(sbyte?))
+            else if(column.DataType == typeof(sbyte) || column.DataType == typeof(sbyte?))
             {
                 parameter.DbType = DbType.SByte;
+                parameter.Value = value is string ? sbyte.Parse((string)value) : (sbyte)value;
             }
-            else if (property.PropertyType == typeof(float) || property.PropertyType == typeof(float?))
+            else if (column.DataType == typeof(float) || column.DataType == typeof(float?))
             {
                 parameter.DbType = DbType.Single;
+                parameter.Value = value is string ? float.Parse((string)value) : (float)value;
             }
-            else if (property.PropertyType == typeof(Guid) || property.PropertyType == typeof(Guid?))
+            else if (column.DataType == typeof(Guid) || column.DataType == typeof(Guid?))
             {
                 parameter.DbType = DbType.Guid;
+                parameter.Value = value is string ? Guid.Parse((string)value) : (Guid)value;
             }
-            else if (property.PropertyType == typeof(object))
+            else if (column.DataType == typeof(object))
             {
                 parameter.DbType = DbType.Object;
+                parameter.Value = (object)value;
             }
-            else if (property.PropertyType == typeof(ulong) || property.PropertyType == typeof(ulong?))
+            else if (column.DataType == typeof(ulong) || column.DataType == typeof(ulong?))
             {
                 parameter.DbType = DbType.UInt64;
+                parameter.Value = value is string ? ulong.Parse((string)value) : (ulong)value;
             }
-            else if (property.PropertyType == typeof(uint) || property.PropertyType == typeof(uint?))
+            else if (column.DataType == typeof(uint) || column.DataType == typeof(uint?))
             {
                 parameter.DbType = DbType.UInt32;
+                parameter.Value = value is string ? uint.Parse((string)value) : (uint)value;
             }
-            else if (property.PropertyType == typeof(ushort) || property.PropertyType == typeof(ushort?) || property.PropertyType == typeof(char) || property.PropertyType == typeof(char))
+            else if (column.DataType == typeof(ushort) || column.DataType == typeof(ushort?) || column.DataType == typeof(char) || column.DataType == typeof(char))
             {
                 parameter.DbType = DbType.UInt16;
+                parameter.Value = value is string ? UInt16.Parse((string)value) : (UInt16)value;
             }
 
             return parameter;
@@ -508,7 +556,7 @@ namespace Michael.Database
             command.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME= @table";
             DbParameter parameter = command.CreateParameter();
             parameter.ParameterName = "@table";
-            parameter.Value = table;
+            parameter.Value = table.ToLower(); // Postgresql lower TABLE_NAME to table_name
             parameter.DbType = System.Data.DbType.String;
             parameter.Size = 4000;
             command.Parameters.Add(parameter);
