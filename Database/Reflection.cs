@@ -29,33 +29,18 @@ namespace Michael.Database
                 {
                     DbColumn result = new DbColumn();
                     object[] res = row.ItemArray;
+                    result.ColumnName = (string)res[0];
+                    result.ColumnOrdinal = (int)res[1];
+                    result.ColumnSize = (int)res[2];
+                    result.NumericPrecision = (int?)res[3];
+                    result.NumericScale = (int?)res[4];
                     for (int j = 0; j < res.Length; j++)
                     {
-                        result.ColumnName = (string)res[0];
-                        result.ColumnOrdinal = (int)res[1];
-                        result.ColumnSize = (int)res[2];
-                        result.NumericPrecision = (int?)res[3];
-                        result.NumericScale = (int?)res[4];
-                        result.IsUnique = (bool)res[5];
-                        result.IsKey = (bool)res[6];
-                        result.BaseServerName = (string)res[7];
-                        result.BaseCatalogName = (string)res[8];
-                        result.BaseColumnName = (string)res[9];
-                        result.BaseSchemaName = (string)res[10];
-                        result.BaseTableName = (string)res[11];
-                        result.DataType = (Type)res[12];
-                        result.AllowDBNull = (bool)res[13];
-                        result.ProviderType = (int?)res[14];
-                        result.IsAliased = (bool?)res[15];
-                        result.IsExpression = (bool?)res[16];
-                        result.IsIdentity = (bool?)res[17];
-                        result.IsAutoIncrement = (bool?)res[18];
-                        result.IsRowVersion = (bool?)res[19];
-                        result.IsHidden = (bool?)res[20];
-                        result.IsLong = (bool?)res[21];
-                        result.IsReadOnly = res[22] == DBNull.Value ? null : (bool?)res[22];
-                        result.ProviderSpecificDataType = res[22] == DBNull.Value ? null : (Type)res[22];
-                        result.DataTypeName = (string)res[24];
+                        if(res[j].GetType().FullName.Equals("System.RuntimeType"))
+                        {
+                            result.DataType = (Type)res[j];
+                            break;
+                        }
                     }
                     dbDataReader.Close();
                     return result;
