@@ -7,6 +7,13 @@ using System.Reflection;
 
 namespace Michael.Database
 {
+    public enum Case
+    {
+        camelCase,
+        pascalCase,
+        kebabCase
+    }
+
     public class Reflection
     {
         public static DbColumn FindColumn(DbConnection connection, string tableName, string columnName)
@@ -135,8 +142,11 @@ namespace Michael.Database
             return command.ExecuteNonQuery();
         }
 
-        public static int Insert(DbConnection connection, string tableName, object source)
+        public static int Insert(DbConnection connection, string tableName, object source, Case @classCase, Case @dbCase, char? dbEscapeCharacter = null)
         {
+            if (dbCase != Case.kebabCase && dbEscapeCharacter == null)
+                throw new ArgumentException("You must indicate database escaping character if it's not kebab case.");
+
             if (source == null)
                 throw new ArgumentException("Source cannot be null.");
 
@@ -145,15 +155,68 @@ namespace Michael.Database
 
             Type objectType = source.GetType();
             List<string> primaryKeys = GetPrimaryKeyColumns(connection, tableName);
-            List<PropertyInfo> commonDbProperties = FindCommonDbProperties(tableName, connection, objectType);
+            List<PropertyInfo> commonDbProperties = FindCommonDbProperties(tableName, connection, objectType, classCase, dbCase);
             List<PropertyInfo> propsWithoutPrimKeys = new List<PropertyInfo>();
 
             foreach (PropertyInfo property in commonDbProperties)
             {
                 for (int i = 0; i < primaryKeys.Count; i++)
                 {
-                    if (!property.Name.Equals(primaryKeys[i], StringComparison.InvariantCultureIgnoreCase))
-                        propsWithoutPrimKeys.Add(property);
+
+                    if (classCase == Case.camelCase)
+                    {
+                        if (dbCase == Case.camelCase)
+                        {
+                            if (!property.Name.Equals(primaryKeys[i]))
+                                propsWithoutPrimKeys.Add(property);
+                        }
+                        else if (dbCase == Case.pascalCase)
+                        {
+                            if (!Michael.Utility.StringUtility.FromCamelToPascal(property.Name).Equals(primaryKeys[i]))
+                                propsWithoutPrimKeys.Add(property);
+                        }
+                        else
+                        {
+                            if (!Michael.Utility.StringUtility.FromCamelToKebab(property.Name).Equals(primaryKeys[i]))
+                                propsWithoutPrimKeys.Add(property);
+                        }
+                    }
+                    else if (classCase == Case.pascalCase)
+                    {
+                        if (dbCase == Case.camelCase)
+                        {
+                            if (!Michael.Utility.StringUtility.FromPascalToCamel(property.Name).Equals(primaryKeys[i]))
+                                propsWithoutPrimKeys.Add(property);
+                        }
+                        else if (dbCase == Case.pascalCase)
+                        {
+                            if (!property.Name.Equals(primaryKeys[i]))
+                                propsWithoutPrimKeys.Add(property);
+                        }
+                        else
+                        {
+                            if (!Michael.Utility.StringUtility.FromPascalToKebab(property.Name).Equals(primaryKeys[i]))
+                                propsWithoutPrimKeys.Add(property);
+                        }
+                    }
+                    else
+                    {
+                        if (dbCase == Case.camelCase)
+                        {
+                            if (!Michael.Utility.StringUtility.FromKebabToCamel(property.Name).Equals(primaryKeys[i]))
+                                propsWithoutPrimKeys.Add(property);
+                        }
+                        else if (dbCase == Case.pascalCase)
+                        {
+                            if (!Michael.Utility.StringUtility.FromKebabToPascal(property.Name).Equals(primaryKeys[i]))
+                                propsWithoutPrimKeys.Add(property);
+                        }
+                        else
+                        {
+                            if (!property.Name.Equals(primaryKeys[i], StringComparison.InvariantCultureIgnoreCase))
+                                propsWithoutPrimKeys.Add(property);
+                        }
+                    }                    
                 }
             }
 
@@ -170,7 +233,12 @@ namespace Michael.Database
                 dbParameter = CreateParameter(connection, tableName, propsWithoutPrimKeys[i].Name, command, propsWithoutPrimKeys[i].GetValue(source), propsWithoutPrimKeys[i].Name);
                 command.Parameters.Add(dbParameter);
 
+                if (dbEscapeCharacter != null)
+                    sql1 += dbEscapeCharacter;
                 sql1 += propsWithoutPrimKeys[i].Name;
+                if (dbEscapeCharacter != null)
+                    sql1 += dbEscapeCharacter;
+
                 sql2 += "@" + propsWithoutPrimKeys[i].Name;
                 if (i != propsWithoutPrimKeys.Count - 1)
                 {
@@ -190,9 +258,12 @@ namespace Michael.Database
             return command.ExecuteNonQuery();
         }
 
-        public static object[] Select(DbConnection connection, string table, string fullClassName, string[] attributes, object[] values, string[] operators)
+        public static object[] Select(DbConnection connection, string table, string fullClassName, Case @classCase, Case @dbCase, char? dbEscapeCharacter = null, string[] attributes = null, object[] values = null, string[] operators = null)
         {
-            if((attributes != null && values == null) || (attributes == null && values != null))
+            if (dbCase != Case.kebabCase && dbEscapeCharacter == null)
+                throw new ArgumentException("You must indicate database escaping character if it's not kebab case.");
+
+            if ((attributes != null && values == null) || (attributes == null && values != null))
                 throw new ArgumentException("Attributes and values must be set together or null together");
 
             if (attributes != null && attributes.Length != values.Length)
@@ -214,7 +285,8 @@ namespace Michael.Database
             string[] ctorParamNames = null;
             List<PropertyInfo> readAndWriteProperties = new List<PropertyInfo>();
             List<PropertyInfo> readOnlyProperties = FindReadOnlyProperties(type);
-            List<PropertyInfo> commonDbProperties = FindCommonDbProperties(table, connection, type);
+            List<PropertyInfo> commonDbProperties = FindCommonDbProperties(table, connection, type, classCase, dbCase);
+            Console.WriteLine("cd count="+commonDbProperties.Count);
             string[] tableColumnsNames = GetTableColumnNames(table, connection);
             List<object> result = new List<object>();
 
@@ -245,7 +317,13 @@ namespace Michael.Database
                 DbParameter dbParameter = null;
                 for (int i = 0; i < attributes.Length; i++)
                 {
-                    sql += attributes[i] + " " + operators[i] + " @" + attributes[i];
+                    if (dbEscapeCharacter != null)
+                        sql += dbEscapeCharacter;
+                    sql += attributes[i];
+                    if (dbEscapeCharacter != null)
+                        sql += dbEscapeCharacter;
+
+                    sql += " " + operators[i] + " @" + attributes[i];
                     if (i != attributes.Length - 1)
                         sql += " AND ";
                 }
@@ -303,7 +381,51 @@ namespace Michael.Database
                     obj = Activator.CreateInstance(type);
                     foreach (PropertyInfo common in commonDbProperties)
                     {
-                        common.SetValue(obj,  dataReader.GetValue(dataReader.GetOrdinal(StringUtility.ToPascalCase(common.Name))));
+                        if(classCase == Case.camelCase)
+                        {
+                            if(dbCase == Case.camelCase)
+                            {
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(common.Name)));
+                            }
+                            else if(dbCase == Case.pascalCase)
+                            {
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromCamelToPascal(common.Name))));
+                            }
+                            else
+                            {
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromCamelToPascal(common.Name))));
+                            }
+                        }
+                        else if(classCase == Case.pascalCase)
+                        {
+                            if(dbCase == Case.camelCase)
+                            {
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromPascalToCamel(common.Name))));
+                            }
+                            else if(dbCase == Case.pascalCase)
+                            {
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(common.Name)));
+                            }
+                            else
+                            {
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromPascalToKebab(common.Name))));
+                            }
+                        }
+                        else
+                        {
+                            if (dbCase == Case.camelCase)
+                            {
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromKebabToCamel(common.Name))));
+                            }
+                            else if (dbCase == Case.pascalCase)
+                            {
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromKebabToPascal(common.Name))));
+                            }
+                            else
+                            {
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(common.Name)));
+                            }
+                        }
                     }
                     result.Add(obj);
                 }
@@ -486,8 +608,18 @@ namespace Michael.Database
             return res;
         }
 
-        public static List<PropertyInfo> FindCommonDbProperties(string table, DbConnection connection, Type type)
+        public static List<PropertyInfo> FindCommonDbProperties(string table, DbConnection connection, Type type, Case @classCase,  Case @dbCase)
         {
+            if(classCase < Case.camelCase || classCase > Case.kebabCase)
+            {
+                throw new ArgumentException("Incorrect case reference for class case.");
+            }
+
+            if (dbCase < Case.camelCase || dbCase > Case.kebabCase)
+            {
+                throw new ArgumentException("Incorrect case reference for database case.");
+            }
+
             List<PropertyInfo> properties = new List<PropertyInfo>(type.GetProperties());
             List<PropertyInfo> commonDbProperties = new List<PropertyInfo>();
             string[] tableColumnNames = GetTableColumnNames(table, connection);
@@ -496,9 +628,77 @@ namespace Michael.Database
             {
                 for (int i = 0; i < tableColumnNames.Length; i++)
                 {
-                    if(property.Name.Equals(tableColumnNames[i], StringComparison.InvariantCultureIgnoreCase))
+                    if(classCase == Case.camelCase)
                     {
-                        commonDbProperties.Add(property);
+                        if(dbCase == Case.camelCase)
+                        {
+                            if (property.Name.Equals(tableColumnNames[i]))
+                            {
+                                commonDbProperties.Add(property);
+                            }
+                        }
+                        else if(dbCase == Case.pascalCase)
+                        {
+                            if (Michael.Utility.StringUtility.FromCamelToPascal(property.Name).Equals(tableColumnNames[i]))
+                            {
+                                commonDbProperties.Add(property);
+                            }
+                        }
+                        else
+                        {
+                            if (Michael.Utility.StringUtility.FromCamelToKebab(property.Name).Equals(tableColumnNames[i]))
+                            {
+                                commonDbProperties.Add(property);
+                            }
+                        }
+                    }
+                    else if(classCase == Case.pascalCase)
+                    {
+                        if (dbCase == Case.camelCase)
+                        {
+                            if (Michael.Utility.StringUtility.FromPascalToCamel(property.Name).Equals(tableColumnNames[i]))
+                            {
+                                commonDbProperties.Add(property);
+                            }
+                        }
+                        else if (dbCase == Case.pascalCase)
+                        {
+                            if (property.Name.Equals(tableColumnNames[i]))
+                            {
+                                commonDbProperties.Add(property);
+                            }
+                        }
+                        else
+                        {
+                            if (Michael.Utility.StringUtility.FromPascalToKebab(property.Name).Equals(tableColumnNames[i]))
+                            {
+                                commonDbProperties.Add(property);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (dbCase == Case.camelCase)
+                        {
+                            if (Michael.Utility.StringUtility.FromKebabToCamel(property.Name).Equals(tableColumnNames[i]))
+                            {
+                                commonDbProperties.Add(property);
+                            }
+                        }
+                        else if (dbCase == Case.pascalCase)
+                        {
+                            if (Michael.Utility.StringUtility.FromKebabToPascal(property.Name).Equals(tableColumnNames[i]))
+                            {
+                                commonDbProperties.Add(property);
+                            }
+                        }
+                        else
+                        {
+                            if (property.Name.Equals(tableColumnNames[i], StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                commonDbProperties.Add(property);
+                            }
+                        }
                     }
                 }
             }
