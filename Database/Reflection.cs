@@ -25,7 +25,7 @@ namespace Michael.Database
 
             foreach (DataRow row in schemaTable.Rows)
             {
-                if (row["ColumnName"].ToString().Equals(columnName.ToLower()))
+                if (row["ColumnName"].ToString().Equals(columnName))
                 {
                     DbColumn result = new DbColumn();
                     object[] res = row.ItemArray;
@@ -53,8 +53,8 @@ namespace Michael.Database
                         result.IsRowVersion = (bool?)res[19];
                         result.IsHidden = (bool?)res[20];
                         result.IsLong = (bool?)res[21];
-                        result.IsReadOnly = res[22] == System.DBNull.Value ? null : (bool?)res[22];
-                        result.ProviderSpecificDataType = res[22] == System.DBNull.Value ? null : (Type)res[22];
+                        result.IsReadOnly = res[22] == DBNull.Value ? null : (bool?)res[22];
+                        result.ProviderSpecificDataType = res[22] == DBNull.Value ? null : (Type)res[22];
                         result.DataTypeName = (string)res[24];
                     }
                     dbDataReader.Close();
@@ -64,8 +64,10 @@ namespace Michael.Database
             throw new Exception("Attribute " + columnName + " not found in table " + tableName+".");
         }
 
-        public static int Delete(DbConnection connection, string tableName, Dictionary<string, object> where)
+        public static int Delete(DbConnection connection, string tableName, Dictionary<string, object> where, Case @dbCase, char? dbEscapeCharacter = null)
         {
+            if (dbCase != Case.kebabCase && dbEscapeCharacter == null)
+                throw new ArgumentException("You must indicate database escaping character if it's not kebab case.");
 
             if (string.IsNullOrEmpty(tableName))
                 throw new ArgumentException("Table name must be set.");
@@ -83,7 +85,13 @@ namespace Michael.Database
                 dbParameter = CreateParameter(connection, tableName, item.Key, command, item.Value, item.Key);
                 command.Parameters.Add(dbParameter);
 
-                sql += item.Key + " =  @" + item.Key;
+                if (dbEscapeCharacter != null)
+                    sql += dbEscapeCharacter;
+                sql += item.Key;
+                if (dbEscapeCharacter != null)
+                    sql += dbEscapeCharacter;
+
+                sql += " = @" + item.Key;
                 if (i != where.Count - 1)
                     sql += " AND ";
                 i++;
@@ -95,8 +103,11 @@ namespace Michael.Database
             return command.ExecuteNonQuery();
         }
 
-        public static int Update(DbConnection connection, string tableName, Dictionary<string, object> updates, Dictionary<string, object> where)
+        public static int Update(DbConnection connection, string tableName, Dictionary<string, object> updates, Dictionary<string, object> where, Case @dbCase, char? dbEscapeCharacter = null)
         {
+            if (dbCase != Case.kebabCase && dbEscapeCharacter == null)
+                throw new ArgumentException("You must indicate database escaping character if it's not kebab case.");
+
             if (string.IsNullOrEmpty(tableName))
                 throw new ArgumentException("Table name must be set.");
 
@@ -117,7 +128,13 @@ namespace Michael.Database
                 dbParameter = CreateParameter(connection, tableName, item.Key, command, item.Value, item.Key);
                 command.Parameters.Add(dbParameter);
 
-                sql += item.Key + " = @" + item.Key;
+                if (dbEscapeCharacter != null)
+                    sql += dbEscapeCharacter;
+                sql += item.Key;
+                if (dbEscapeCharacter != null)
+                    sql += dbEscapeCharacter;
+
+                sql += " = @" + item.Key;
                 if (i != updates.Count - 1)
                     sql += ", ";
                 else
@@ -131,7 +148,13 @@ namespace Michael.Database
                 dbParameter = CreateParameter(connection, tableName, item.Key, command, item.Value, "where"+item.Key);
                 command.Parameters.Add(dbParameter);
 
-                sql += item.Key + " = @where" + item.Key;
+                if (dbEscapeCharacter != null)
+                    sql += dbEscapeCharacter;
+                sql += item.Key;
+                if (dbEscapeCharacter != null)
+                    sql += dbEscapeCharacter;
+
+                sql += " = @where" + item.Key;
                 if (i != where.Count - 1)
                     sql += " AND ";
                 i++;
@@ -172,12 +195,12 @@ namespace Michael.Database
                         }
                         else if (dbCase == Case.pascalCase)
                         {
-                            if (!Michael.Utility.StringUtility.FromCamelToPascal(property.Name).Equals(primaryKeys[i]))
+                            if (!StringUtility.FromCamelToPascal(property.Name).Equals(primaryKeys[i]))
                                 propsWithoutPrimKeys.Add(property);
                         }
                         else
                         {
-                            if (!Michael.Utility.StringUtility.FromCamelToKebab(property.Name).Equals(primaryKeys[i]))
+                            if (!StringUtility.FromCamelToKebab(property.Name).Equals(primaryKeys[i]))
                                 propsWithoutPrimKeys.Add(property);
                         }
                     }
@@ -185,7 +208,7 @@ namespace Michael.Database
                     {
                         if (dbCase == Case.camelCase)
                         {
-                            if (!Michael.Utility.StringUtility.FromPascalToCamel(property.Name).Equals(primaryKeys[i]))
+                            if (!StringUtility.FromPascalToCamel(property.Name).Equals(primaryKeys[i]))
                                 propsWithoutPrimKeys.Add(property);
                         }
                         else if (dbCase == Case.pascalCase)
@@ -195,7 +218,7 @@ namespace Michael.Database
                         }
                         else
                         {
-                            if (!Michael.Utility.StringUtility.FromPascalToKebab(property.Name).Equals(primaryKeys[i]))
+                            if (!StringUtility.FromPascalToKebab(property.Name).Equals(primaryKeys[i]))
                                 propsWithoutPrimKeys.Add(property);
                         }
                     }
@@ -203,12 +226,12 @@ namespace Michael.Database
                     {
                         if (dbCase == Case.camelCase)
                         {
-                            if (!Michael.Utility.StringUtility.FromKebabToCamel(property.Name).Equals(primaryKeys[i]))
+                            if (!StringUtility.FromKebabToCamel(property.Name).Equals(primaryKeys[i]))
                                 propsWithoutPrimKeys.Add(property);
                         }
                         else if (dbCase == Case.pascalCase)
                         {
-                            if (!Michael.Utility.StringUtility.FromKebabToPascal(property.Name).Equals(primaryKeys[i]))
+                            if (!StringUtility.FromKebabToPascal(property.Name).Equals(primaryKeys[i]))
                                 propsWithoutPrimKeys.Add(property);
                         }
                         else
@@ -230,16 +253,72 @@ namespace Michael.Database
 
             for (int i = 0; i < propsWithoutPrimKeys.Count; i++)
             {
-                dbParameter = CreateParameter(connection, tableName, propsWithoutPrimKeys[i].Name, command, propsWithoutPrimKeys[i].GetValue(source), propsWithoutPrimKeys[i].Name);
+                if (dbEscapeCharacter != null)
+                    sql1 += dbEscapeCharacter;
+
+
+                if (classCase == dbCase)
+                {
+                    dbParameter = CreateParameter(connection, tableName, propsWithoutPrimKeys[i].Name, command, propsWithoutPrimKeys[i].GetValue(source), propsWithoutPrimKeys[i].Name);
+                    sql1 += propsWithoutPrimKeys[i].Name;
+                    sql2 += "@" + propsWithoutPrimKeys[i].Name;
+                }
+                else
+                {
+                    if(classCase == Case.camelCase)
+                    {
+                        if(dbCase == Case.pascalCase)
+                        {
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromCamelToPascal(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromCamelToPascal(propsWithoutPrimKeys[i].Name));
+                            sql1 += StringUtility.FromCamelToPascal(propsWithoutPrimKeys[i].Name);
+                            sql2 += "@" +StringUtility.FromCamelToPascal(propsWithoutPrimKeys[i].Name);
+                        }
+                        else
+                        {
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromCamelToKebab(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromCamelToKebab(propsWithoutPrimKeys[i].Name));
+                            sql1 += StringUtility.FromCamelToKebab(propsWithoutPrimKeys[i].Name);
+                            sql2 += "@" + StringUtility.FromCamelToKebab(propsWithoutPrimKeys[i].Name);
+                        }
+                    }
+                    else if(classCase == Case.pascalCase)
+                    {
+                        if (dbCase == Case.camelCase)
+                        {
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromPascalToCamel(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromPascalToCamel(propsWithoutPrimKeys[i].Name));
+                            sql1 += StringUtility.FromPascalToCamel(propsWithoutPrimKeys[i].Name);
+                            sql2 += "@" + StringUtility.FromPascalToCamel(propsWithoutPrimKeys[i].Name);
+                        }
+                        else
+                        {
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromPascalToKebab(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromPascalToKebab(propsWithoutPrimKeys[i].Name));
+                            sql1 += StringUtility.FromPascalToKebab(propsWithoutPrimKeys[i].Name);
+                            sql2 += "@" + StringUtility.FromPascalToKebab(propsWithoutPrimKeys[i].Name);
+                        }
+                    }
+                    else
+                    {
+                        if (dbCase == Case.camelCase)
+                        {
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromKebabToCamel(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromKebabToCamel(propsWithoutPrimKeys[i].Name));
+                            sql1 += StringUtility.FromKebabToCamel(propsWithoutPrimKeys[i].Name);
+                            sql2 += "@" + StringUtility.FromKebabToCamel(propsWithoutPrimKeys[i].Name);
+                        }
+                        else
+                        {
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromKebabToPascal(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromKebabToPascal(propsWithoutPrimKeys[i].Name));
+                            sql1 += StringUtility.FromKebabToPascal(propsWithoutPrimKeys[i].Name);
+                            sql2 += "@" + StringUtility.FromKebabToPascal(propsWithoutPrimKeys[i].Name);
+                        }
+                    }
+                }
+
                 command.Parameters.Add(dbParameter);
 
-                if (dbEscapeCharacter != null)
-                    sql1 += dbEscapeCharacter;
-                sql1 += propsWithoutPrimKeys[i].Name;
+
                 if (dbEscapeCharacter != null)
                     sql1 += dbEscapeCharacter;
 
-                sql2 += "@" + propsWithoutPrimKeys[i].Name;
+                
                 if (i != propsWithoutPrimKeys.Count - 1)
                 {
                     sql1 += ",";
@@ -389,18 +468,18 @@ namespace Michael.Database
                             }
                             else if(dbCase == Case.pascalCase)
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromCamelToPascal(common.Name))));
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromCamelToPascal(common.Name))));
                             }
                             else
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromCamelToPascal(common.Name))));
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromCamelToKebab(common.Name))));
                             }
                         }
                         else if(classCase == Case.pascalCase)
                         {
                             if(dbCase == Case.camelCase)
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromPascalToCamel(common.Name))));
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromPascalToCamel(common.Name))));
                             }
                             else if(dbCase == Case.pascalCase)
                             {
@@ -408,18 +487,18 @@ namespace Michael.Database
                             }
                             else
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromPascalToKebab(common.Name))));
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromPascalToKebab(common.Name))));
                             }
                         }
                         else
                         {
                             if (dbCase == Case.camelCase)
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromKebabToCamel(common.Name))));
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromKebabToCamel(common.Name))));
                             }
                             else if (dbCase == Case.pascalCase)
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(Michael.Utility.StringUtility.FromKebabToPascal(common.Name))));
+                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromKebabToPascal(common.Name))));
                             }
                             else
                             {
@@ -458,32 +537,32 @@ namespace Michael.Database
             else if(column.DataType == typeof(long) || column.DataType == typeof(long?))
             {
                 parameter.DbType = DbType.Int64;
-                parameter.Value = value is string ? long.Parse((string)value) : (long)value;
+                parameter.Value = value is string ? long.Parse((string)value) : Convert.ToInt64(value);
             }
             else if (column.DataType == typeof(int) || column.DataType == typeof(int?))
             {
                 parameter.DbType = DbType.Int32;
-                parameter.Value = value is string ? int.Parse((string)value) : (int) value;
+                parameter.Value = value is string ? int.Parse((string)value) : Convert.ToInt32(value);
             }
             else if (column.DataType == typeof(short) || column.DataType == typeof(short?))
             {
                 parameter.DbType = DbType.Int16;
-                parameter.Value = value is string ? short.Parse((string)value) : (short)value;
+                parameter.Value = value is string ? short.Parse((string)value) : Convert.ToInt16(value);
             }
             else if(column.DataType == typeof(bool) || column.DataType == typeof(bool?))
             {
                 parameter.DbType = DbType.Boolean;
-                parameter.Value = value is string ? bool.Parse((string)value) : (bool)value;
+                parameter.Value = value is string ? bool.Parse((string)value) : Convert.ToBoolean(value);
             }
             else if(column.DataType == typeof(byte) || column.DataType == typeof(byte?))
             {
                 parameter.DbType = DbType.Byte;
-                parameter.Value = value is string ? byte.Parse((string)value) : (byte)value;
+                parameter.Value = value is string ? byte.Parse((string)value) : Convert.ToByte(value);
             }
             else if(column.DataType == typeof(DateTime) || column.DataType == typeof(DateTime?))
             {
                 parameter.DbType = DbType.DateTime;
-                parameter.Value = value is string ? DateTime.Parse((string)value) : (DateTime)value;
+                parameter.Value = value is string ? DateTime.Parse((string)value) : Convert.ToDateTime(value);
             }
             else if (column.DataType == typeof(DateTimeOffset) || column.DataType == typeof(DateTimeOffset?))
             {
@@ -493,12 +572,12 @@ namespace Michael.Database
             else if(column.DataType == typeof(decimal) || column.DataType == typeof(decimal?))
             {
                 parameter.DbType = DbType.Decimal;
-                parameter.Value = value is string ? decimal.Parse((string)value) : (decimal)value;
+                parameter.Value = value is string ? decimal.Parse((string)value) : Convert.ToDecimal(value);
             }
             else if(column.DataType == typeof(double) || column.DataType == typeof(double?))
             {
                 parameter.DbType = DbType.Double;
-                parameter.Value = value is string ? double.Parse((string)value) : (double)value;
+                parameter.Value = value is string ? double.Parse((string)value) : Convert.ToDouble(value);
             }
             else if(column.DataType == typeof(TimeSpan) || column.DataType == typeof(TimeSpan?))
             {
@@ -508,7 +587,7 @@ namespace Michael.Database
             else if(column.DataType == typeof(sbyte) || column.DataType == typeof(sbyte?))
             {
                 parameter.DbType = DbType.SByte;
-                parameter.Value = value is string ? sbyte.Parse((string)value) : (sbyte)value;
+                parameter.Value = value is string ? sbyte.Parse((string)value) : Convert.ToSByte(value);
             }
             else if (column.DataType == typeof(float) || column.DataType == typeof(float?))
             {
@@ -528,17 +607,17 @@ namespace Michael.Database
             else if (column.DataType == typeof(ulong) || column.DataType == typeof(ulong?))
             {
                 parameter.DbType = DbType.UInt64;
-                parameter.Value = value is string ? ulong.Parse((string)value) : (ulong)value;
+                parameter.Value = value is string ? ulong.Parse((string)value) : Convert.ToUInt64(value);
             }
             else if (column.DataType == typeof(uint) || column.DataType == typeof(uint?))
             {
                 parameter.DbType = DbType.UInt32;
-                parameter.Value = value is string ? uint.Parse((string)value) : (uint)value;
+                parameter.Value = value is string ? uint.Parse((string)value) : Convert.ToUInt32(value);
             }
             else if (column.DataType == typeof(ushort) || column.DataType == typeof(ushort?) || column.DataType == typeof(char) || column.DataType == typeof(char))
             {
                 parameter.DbType = DbType.UInt16;
-                parameter.Value = value is string ? UInt16.Parse((string)value) : (UInt16)value;
+                parameter.Value = value is string ? ushort.Parse((string)value) : Convert.ToUInt16(value);
             }
 
             return parameter;
@@ -639,14 +718,14 @@ namespace Michael.Database
                         }
                         else if(dbCase == Case.pascalCase)
                         {
-                            if (Michael.Utility.StringUtility.FromCamelToPascal(property.Name).Equals(tableColumnNames[i]))
+                            if (StringUtility.FromCamelToPascal(property.Name).Equals(tableColumnNames[i]))
                             {
                                 commonDbProperties.Add(property);
                             }
                         }
                         else
                         {
-                            if (Michael.Utility.StringUtility.FromCamelToKebab(property.Name).Equals(tableColumnNames[i]))
+                            if (StringUtility.FromCamelToKebab(property.Name).Equals(tableColumnNames[i]))
                             {
                                 commonDbProperties.Add(property);
                             }
@@ -656,7 +735,7 @@ namespace Michael.Database
                     {
                         if (dbCase == Case.camelCase)
                         {
-                            if (Michael.Utility.StringUtility.FromPascalToCamel(property.Name).Equals(tableColumnNames[i]))
+                            if (StringUtility.FromPascalToCamel(property.Name).Equals(tableColumnNames[i]))
                             {
                                 commonDbProperties.Add(property);
                             }
@@ -670,7 +749,7 @@ namespace Michael.Database
                         }
                         else
                         {
-                            if (Michael.Utility.StringUtility.FromPascalToKebab(property.Name).Equals(tableColumnNames[i]))
+                            if (StringUtility.FromPascalToKebab(property.Name).Equals(tableColumnNames[i]))
                             {
                                 commonDbProperties.Add(property);
                             }
@@ -680,14 +759,14 @@ namespace Michael.Database
                     {
                         if (dbCase == Case.camelCase)
                         {
-                            if (Michael.Utility.StringUtility.FromKebabToCamel(property.Name).Equals(tableColumnNames[i]))
+                            if (StringUtility.FromKebabToCamel(property.Name).Equals(tableColumnNames[i]))
                             {
                                 commonDbProperties.Add(property);
                             }
                         }
                         else if (dbCase == Case.pascalCase)
                         {
-                            if (Michael.Utility.StringUtility.FromKebabToPascal(property.Name).Equals(tableColumnNames[i]))
+                            if (StringUtility.FromKebabToPascal(property.Name).Equals(tableColumnNames[i]))
                             {
                                 commonDbProperties.Add(property);
                             }
@@ -757,7 +836,7 @@ namespace Michael.Database
             DbParameter parameter = command.CreateParameter();
             parameter.ParameterName = "@table";
             parameter.Value = table.ToLower(); // Postgresql lower TABLE_NAME to table_name
-            parameter.DbType = System.Data.DbType.String;
+            parameter.DbType = DbType.String;
             parameter.Size = 4000;
             command.Parameters.Add(parameter);
             command.Prepare();
