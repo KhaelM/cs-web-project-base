@@ -76,7 +76,12 @@ namespace Michael.Database
                 if (dbEscapeCharacter != null)
                     sql += dbEscapeCharacter;
 
-                sql += " = @" + item.Key;
+                if (dbParameter.Value != DBNull.Value)
+                    sql += " = ";
+                else
+                    sql += " IS ";
+
+                sql += "@" + item.Key;
                 if (i != where.Count - 1)
                     sql += " AND ";
                 i++;
@@ -139,7 +144,12 @@ namespace Michael.Database
                 if (dbEscapeCharacter != null)
                     sql += dbEscapeCharacter;
 
-                sql += " = @where" + item.Key;
+                if (dbParameter.Value != DBNull.Value)
+                    sql += " = ";
+                else
+                    sql += " IS ";
+
+                sql += " @where" + item.Key;
                 if (i != where.Count - 1)
                     sql += " AND ";
                 i++;
@@ -445,51 +455,56 @@ namespace Michael.Database
                     obj = Activator.CreateInstance(type);
                     foreach (PropertyInfo common in commonDbProperties)
                     {
+                        object fromDatabaseValue = null;
                         if(classCase == Case.camelCase)
                         {
                             if(dbCase == Case.camelCase)
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(common.Name)));
+                                fromDatabaseValue = dataReader.GetValue(dataReader.GetOrdinal(common.Name));
                             }
                             else if(dbCase == Case.pascalCase)
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromCamelToPascal(common.Name))));
+                                fromDatabaseValue = dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromCamelToPascal(common.Name)));
                             }
                             else
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromCamelToKebab(common.Name))));
+                                fromDatabaseValue = dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromCamelToKebab(common.Name)));
                             }
                         }
                         else if(classCase == Case.pascalCase)
                         {
                             if(dbCase == Case.camelCase)
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromPascalToCamel(common.Name))));
+                                fromDatabaseValue = dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromPascalToCamel(common.Name)));
                             }
                             else if(dbCase == Case.pascalCase)
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(common.Name)));
+                                fromDatabaseValue = dataReader.GetValue(dataReader.GetOrdinal(common.Name));
                             }
                             else
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromPascalToKebab(common.Name))));
+                                fromDatabaseValue = dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromPascalToKebab(common.Name)));
                             }
                         }
                         else
                         {
                             if (dbCase == Case.camelCase)
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromKebabToCamel(common.Name))));
+                                fromDatabaseValue = dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromKebabToCamel(common.Name)));
                             }
                             else if (dbCase == Case.pascalCase)
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromKebabToPascal(common.Name))));
+                                fromDatabaseValue = dataReader.GetValue(dataReader.GetOrdinal(StringUtility.FromKebabToPascal(common.Name)));
                             }
                             else
                             {
-                                common.SetValue(obj, dataReader.GetValue(dataReader.GetOrdinal(common.Name)));
+                                fromDatabaseValue = dataReader.GetValue(dataReader.GetOrdinal(common.Name));
                             }
                         }
+                        if (fromDatabaseValue != DBNull.Value)
+                            common.SetValue(obj, fromDatabaseValue);
+                        else
+                            common.SetValue(obj, null);
                     }
                     result.Add(obj);
                 }
@@ -512,97 +527,98 @@ namespace Michael.Database
             if (column.DataType == typeof(string) ||column.DataType == typeof(char[]))
             {
                 parameter.DbType = DbType.String;
-                parameter.Value = (string)value;
+                parameter.Value = (value == null) ? DBNull.Value : (object) (string)value;
             }
             else if (column.DataType == typeof(byte[]))
             {
                 parameter.DbType = DbType.Binary;
-                parameter.Value = (byte[])value;
+                parameter.Value = (value == null) ? DBNull.Value : (object) (byte[])value;
             }
             else if(column.DataType == typeof(long) || column.DataType == typeof(long?))
             {
                 parameter.DbType = DbType.Int64;
-                parameter.Value = value is string ? long.Parse((string)value) : Convert.ToInt64(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? long.Parse((string)value) : (object)Convert.ToInt64(value);
+
             }
             else if (column.DataType == typeof(int) || column.DataType == typeof(int?))
             {
                 parameter.DbType = DbType.Int32;
-                parameter.Value = value is string ? int.Parse((string)value) : Convert.ToInt32(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? int.Parse((string)value) : (object)Convert.ToInt32(value);
             }
             else if (column.DataType == typeof(short) || column.DataType == typeof(short?))
             {
                 parameter.DbType = DbType.Int16;
-                parameter.Value = value is string ? short.Parse((string)value) : Convert.ToInt16(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? short.Parse((string)value) : (object) Convert.ToInt16(value);
             }
             else if(column.DataType == typeof(bool) || column.DataType == typeof(bool?))
             {
                 parameter.DbType = DbType.Boolean;
-                parameter.Value = value is string ? bool.Parse((string)value) : Convert.ToBoolean(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? bool.Parse((string)value) : (object) Convert.ToBoolean(value);
             }
             else if(column.DataType == typeof(byte) || column.DataType == typeof(byte?))
             {
                 parameter.DbType = DbType.Byte;
-                parameter.Value = value is string ? byte.Parse((string)value) : Convert.ToByte(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? byte.Parse((string)value) : (object) Convert.ToByte(value);
             }
             else if(column.DataType == typeof(DateTime) || column.DataType == typeof(DateTime?))
             {
                 parameter.DbType = DbType.DateTime;
-                parameter.Value = value is string ? DateTime.Parse((string)value) : Convert.ToDateTime(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? DateTime.Parse((string)value) : (object) Convert.ToDateTime(value);
             }
             else if (column.DataType == typeof(DateTimeOffset) || column.DataType == typeof(DateTimeOffset?))
             {
                 parameter.DbType = DbType.DateTimeOffset;
-                parameter.Value = value is string ? DateTimeOffset.Parse((string)value) : (DateTimeOffset)value;
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? DateTimeOffset.Parse((string)value) : (object) (DateTimeOffset)value;
             }
             else if(column.DataType == typeof(decimal) || column.DataType == typeof(decimal?))
             {
                 parameter.DbType = DbType.Decimal;
-                parameter.Value = value is string ? decimal.Parse((string)value) : Convert.ToDecimal(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? decimal.Parse((string)value) : (object) Convert.ToDecimal(value);
             }
             else if(column.DataType == typeof(double) || column.DataType == typeof(double?))
             {
                 parameter.DbType = DbType.Double;
-                parameter.Value = value is string ? double.Parse((string)value) : Convert.ToDouble(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? double.Parse((string)value) : (object) Convert.ToDouble(value);
             }
             else if(column.DataType == typeof(TimeSpan) || column.DataType == typeof(TimeSpan?))
             {
                 parameter.DbType = DbType.Time;
-                parameter.Value = value is string ? TimeSpan.Parse((string)value) : (TimeSpan)value;
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? TimeSpan.Parse((string)value) : (object) (TimeSpan)value;
             }
             else if(column.DataType == typeof(sbyte) || column.DataType == typeof(sbyte?))
             {
                 parameter.DbType = DbType.SByte;
-                parameter.Value = value is string ? sbyte.Parse((string)value) : Convert.ToSByte(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? sbyte.Parse((string)value) : (object) Convert.ToSByte(value);
             }
             else if (column.DataType == typeof(float) || column.DataType == typeof(float?))
             {
                 parameter.DbType = DbType.Single;
-                parameter.Value = value is string ? float.Parse((string)value) : (float)value;
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? float.Parse((string)value) : (object) (float)value;
             }
             else if (column.DataType == typeof(Guid) || column.DataType == typeof(Guid?))
             {
                 parameter.DbType = DbType.Guid;
-                parameter.Value = value is string ? Guid.Parse((string)value) : (Guid)value;
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? Guid.Parse((string)value) : (object) (Guid)value;
             }
             else if (column.DataType == typeof(object))
             {
                 parameter.DbType = DbType.Object;
-                parameter.Value = (object)value;
+                parameter.Value = (value == null) ? DBNull.Value : value;
             }
             else if (column.DataType == typeof(ulong) || column.DataType == typeof(ulong?))
             {
                 parameter.DbType = DbType.UInt64;
-                parameter.Value = value is string ? ulong.Parse((string)value) : Convert.ToUInt64(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? ulong.Parse((string)value) : (object) Convert.ToUInt64(value);
             }
             else if (column.DataType == typeof(uint) || column.DataType == typeof(uint?))
             {
                 parameter.DbType = DbType.UInt32;
-                parameter.Value = value is string ? uint.Parse((string)value) : Convert.ToUInt32(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? uint.Parse((string)value) : (object) Convert.ToUInt32(value);
             }
             else if (column.DataType == typeof(ushort) || column.DataType == typeof(ushort?) || column.DataType == typeof(char) || column.DataType == typeof(char))
             {
                 parameter.DbType = DbType.UInt16;
-                parameter.Value = value is string ? ushort.Parse((string)value) : Convert.ToUInt16(value);
+                parameter.Value = (value == null) ? DBNull.Value : value is string ? ushort.Parse((string)value) : (object) Convert.ToUInt16(value);
             }
 
             return parameter;
