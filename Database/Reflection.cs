@@ -172,81 +172,14 @@ namespace Michael.Database
                 throw new ArgumentException("Table name must be set.");
 
             Type objectType = source.GetType();
-            List<string> primaryKeys = GetPrimaryKeyColumns(connection, tableName);
             List<PropertyInfo> commonDbProperties = FindCommonDbProperties(tableName, connection, objectType, classCase, dbCase);
-            List<PropertyInfo> propsWithoutPrimKeys = new List<PropertyInfo>();
-
-            foreach (PropertyInfo property in commonDbProperties)
-            {
-                for (int i = 0; i < primaryKeys.Count; i++)
-                {
-
-                    if (classCase == Case.camelCase)
-                    {
-                        if (dbCase == Case.camelCase)
-                        {
-                            if (!property.Name.Equals(primaryKeys[i]))
-                                propsWithoutPrimKeys.Add(property);
-                        }
-                        else if (dbCase == Case.pascalCase)
-                        {
-                            if (!StringUtility.FromCamelToPascal(property.Name).Equals(primaryKeys[i]))
-                                propsWithoutPrimKeys.Add(property);
-                        }
-                        else
-                        {
-                            if (!StringUtility.FromCamelToKebab(property.Name).Equals(primaryKeys[i]))
-                                propsWithoutPrimKeys.Add(property);
-                        }
-                    }
-                    else if (classCase == Case.pascalCase)
-                    {
-                        if (dbCase == Case.camelCase)
-                        {
-                            if (!StringUtility.FromPascalToCamel(property.Name).Equals(primaryKeys[i]))
-                                propsWithoutPrimKeys.Add(property);
-                        }
-                        else if (dbCase == Case.pascalCase)
-                        {
-                            if (!property.Name.Equals(primaryKeys[i]))
-                                propsWithoutPrimKeys.Add(property);
-                        }
-                        else
-                        {
-                            if (!StringUtility.FromPascalToKebab(property.Name).Equals(primaryKeys[i]))
-                                propsWithoutPrimKeys.Add(property);
-                        }
-                    }
-                    else
-                    {
-                        if (dbCase == Case.camelCase)
-                        {
-                            if (!StringUtility.FromKebabToCamel(property.Name).Equals(primaryKeys[i]))
-                                propsWithoutPrimKeys.Add(property);
-                        }
-                        else if (dbCase == Case.pascalCase)
-                        {
-                            if (!StringUtility.FromKebabToPascal(property.Name).Equals(primaryKeys[i]))
-                                propsWithoutPrimKeys.Add(property);
-                        }
-                        else
-                        {
-                            if (!property.Name.Equals(primaryKeys[i], StringComparison.InvariantCultureIgnoreCase))
-                                propsWithoutPrimKeys.Add(property);
-                        }
-                    }                    
-                }
-            }
 
             DbCommand command = connection.CreateCommand();
             DbParameter dbParameter = null;
             string sql1 = "INSERT INTO " + tableName + " (";
             string sql2 = "VALUES (";
 
-            if (propsWithoutPrimKeys.Count == 0)
-                propsWithoutPrimKeys = commonDbProperties;
-
-            for (int i = 0; i < propsWithoutPrimKeys.Count; i++)
+            for (int i = 0; i < commonDbProperties.Count; i++)
             {
                 if (dbEscapeCharacter != null)
                     sql1 += dbEscapeCharacter;
@@ -254,9 +187,9 @@ namespace Michael.Database
 
                 if (classCase == dbCase)
                 {
-                    dbParameter = CreateParameter(connection, tableName, propsWithoutPrimKeys[i].Name, command, propsWithoutPrimKeys[i].GetValue(source), propsWithoutPrimKeys[i].Name);
-                    sql1 += propsWithoutPrimKeys[i].Name;
-                    sql2 += "@" + propsWithoutPrimKeys[i].Name;
+                    dbParameter = CreateParameter(connection, tableName, commonDbProperties[i].Name, command, commonDbProperties[i].GetValue(source), commonDbProperties[i].Name);
+                    sql1 += commonDbProperties[i].Name;
+                    sql2 += "@" + commonDbProperties[i].Name;
                 }
                 else
                 {
@@ -264,45 +197,45 @@ namespace Michael.Database
                     {
                         if(dbCase == Case.pascalCase)
                         {
-                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromCamelToPascal(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromCamelToPascal(propsWithoutPrimKeys[i].Name));
-                            sql1 += StringUtility.FromCamelToPascal(propsWithoutPrimKeys[i].Name);
-                            sql2 += "@" +StringUtility.FromCamelToPascal(propsWithoutPrimKeys[i].Name);
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromCamelToPascal(commonDbProperties[i].Name), command, commonDbProperties[i].GetValue(source), StringUtility.FromCamelToPascal(commonDbProperties[i].Name));
+                            sql1 += StringUtility.FromCamelToPascal(commonDbProperties[i].Name);
+                            sql2 += "@" +StringUtility.FromCamelToPascal(commonDbProperties[i].Name);
                         }
                         else
                         {
-                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromCamelToKebab(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromCamelToKebab(propsWithoutPrimKeys[i].Name));
-                            sql1 += StringUtility.FromCamelToKebab(propsWithoutPrimKeys[i].Name);
-                            sql2 += "@" + StringUtility.FromCamelToKebab(propsWithoutPrimKeys[i].Name);
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromCamelToKebab(commonDbProperties[i].Name), command, commonDbProperties[i].GetValue(source), StringUtility.FromCamelToKebab(commonDbProperties[i].Name));
+                            sql1 += StringUtility.FromCamelToKebab(commonDbProperties[i].Name);
+                            sql2 += "@" + StringUtility.FromCamelToKebab(commonDbProperties[i].Name);
                         }
                     }
                     else if(classCase == Case.pascalCase)
                     {
                         if (dbCase == Case.camelCase)
                         {
-                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromPascalToCamel(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromPascalToCamel(propsWithoutPrimKeys[i].Name));
-                            sql1 += StringUtility.FromPascalToCamel(propsWithoutPrimKeys[i].Name);
-                            sql2 += "@" + StringUtility.FromPascalToCamel(propsWithoutPrimKeys[i].Name);
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromPascalToCamel(commonDbProperties[i].Name), command, commonDbProperties[i].GetValue(source), StringUtility.FromPascalToCamel(commonDbProperties[i].Name));
+                            sql1 += StringUtility.FromPascalToCamel(commonDbProperties[i].Name);
+                            sql2 += "@" + StringUtility.FromPascalToCamel(commonDbProperties[i].Name);
                         }
                         else
                         {
-                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromPascalToKebab(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromPascalToKebab(propsWithoutPrimKeys[i].Name));
-                            sql1 += StringUtility.FromPascalToKebab(propsWithoutPrimKeys[i].Name);
-                            sql2 += "@" + StringUtility.FromPascalToKebab(propsWithoutPrimKeys[i].Name);
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromPascalToKebab(commonDbProperties[i].Name), command, commonDbProperties[i].GetValue(source), StringUtility.FromPascalToKebab(commonDbProperties[i].Name));
+                            sql1 += StringUtility.FromPascalToKebab(commonDbProperties[i].Name);
+                            sql2 += "@" + StringUtility.FromPascalToKebab(commonDbProperties[i].Name);
                         }
                     }
                     else
                     {
                         if (dbCase == Case.camelCase)
                         {
-                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromKebabToCamel(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromKebabToCamel(propsWithoutPrimKeys[i].Name));
-                            sql1 += StringUtility.FromKebabToCamel(propsWithoutPrimKeys[i].Name);
-                            sql2 += "@" + StringUtility.FromKebabToCamel(propsWithoutPrimKeys[i].Name);
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromKebabToCamel(commonDbProperties[i].Name), command, commonDbProperties[i].GetValue(source), StringUtility.FromKebabToCamel(commonDbProperties[i].Name));
+                            sql1 += StringUtility.FromKebabToCamel(commonDbProperties[i].Name);
+                            sql2 += "@" + StringUtility.FromKebabToCamel(commonDbProperties[i].Name);
                         }
                         else
                         {
-                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromKebabToPascal(propsWithoutPrimKeys[i].Name), command, propsWithoutPrimKeys[i].GetValue(source), StringUtility.FromKebabToPascal(propsWithoutPrimKeys[i].Name));
-                            sql1 += StringUtility.FromKebabToPascal(propsWithoutPrimKeys[i].Name);
-                            sql2 += "@" + StringUtility.FromKebabToPascal(propsWithoutPrimKeys[i].Name);
+                            dbParameter = CreateParameter(connection, tableName, StringUtility.FromKebabToPascal(commonDbProperties[i].Name), command, commonDbProperties[i].GetValue(source), StringUtility.FromKebabToPascal(commonDbProperties[i].Name));
+                            sql1 += StringUtility.FromKebabToPascal(commonDbProperties[i].Name);
+                            sql2 += "@" + StringUtility.FromKebabToPascal(commonDbProperties[i].Name);
                         }
                     }
                 }
@@ -314,7 +247,7 @@ namespace Michael.Database
                     sql1 += dbEscapeCharacter;
 
                 
-                if (i != propsWithoutPrimKeys.Count - 1)
+                if (i != commonDbProperties.Count - 1)
                 {
                     sql1 += ",";
                     sql2 += ",";
