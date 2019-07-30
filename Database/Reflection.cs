@@ -360,7 +360,6 @@ namespace Michael.Database
             List<PropertyInfo> readAndWriteProperties = new List<PropertyInfo>();
             List<PropertyInfo> readOnlyProperties = FindReadOnlyProperties(type);
             List<PropertyInfo> commonDbProperties = FindCommonDbProperties(table, connection, type, classCase, dbCase);
-            Console.WriteLine("cd count="+commonDbProperties.Count);
             string[] tableColumnsNames = GetTableColumnNames(table, connection);
             List<object> result = new List<object>();
 
