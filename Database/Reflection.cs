@@ -145,11 +145,10 @@ namespace Michael.Database
                     sql += dbEscapeCharacter;
 
                 if (dbParameter.Value != DBNull.Value)
-                    sql += " = ";
+                    sql += " = @where" + item.Key;
                 else
-                    sql += " IS ";
+                    sql += " IS NULL";
 
-                sql += " @where" + item.Key;
                 if (i != where.Count - 1)
                     sql += " AND ";
                 i++;
