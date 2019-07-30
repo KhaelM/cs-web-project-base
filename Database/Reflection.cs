@@ -77,11 +77,10 @@ namespace Michael.Database
                     sql += dbEscapeCharacter;
 
                 if (dbParameter.Value != DBNull.Value)
-                    sql += " = ";
+                    sql += " = @" + item.Key;
                 else
-                    sql += " IS ";
+                    sql += " IS NULL";
 
-                sql += "@" + item.Key;
                 if (i != where.Count - 1)
                     sql += " AND ";
                 i++;
