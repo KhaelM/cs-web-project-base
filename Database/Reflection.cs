@@ -30,10 +30,10 @@ namespace Michael.Database
                     DbColumn result = new DbColumn();
                     object[] res = row.ItemArray;
                     result.ColumnName = (string)res[0];
-                    result.ColumnOrdinal = (int)res[1];
-                    result.ColumnSize = (int)res[2];
-                    result.NumericPrecision = (int?)res[3];
-                    result.NumericScale = (int?)res[4];
+                    result.ColumnOrdinal = Convert.ToInt32(res[1]);
+                    result.ColumnSize = Convert.ToInt32(res[2]);
+                    result.NumericPrecision = Convert.ToInt32(res[3]);
+                    result.NumericScale = Convert.ToInt32(res[4]);
                     for (int j = 0; j < res.Length; j++)
                     {
                         if(res[j].GetType().FullName.Equals("System.RuntimeType"))
